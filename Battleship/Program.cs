@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using System.Threading; // Threading can be used for functions like sleep
+
 namespace Battleship
 {
     class Program
@@ -20,6 +22,7 @@ namespace Battleship
 
         // Global variables for our game
         static byte rows, columns, playerShips;
+        static bool dev = false;
         // Create an array containing the letters of the alphabet to later use as a visual aid for the x-axis
         static char[] alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".ToCharArray();
 
@@ -37,7 +40,7 @@ namespace Battleship
         static TileType[,] battleFieldArray;
 
         // A function to create our battlefield array
-        static TileType[,] CreateBattlefield(byte rows, byte columns, byte playerShips)
+        static TileType[,] CreateBattlefield()
         {
             // Get random number generators for rows and colums
             Random RandomNumberGenerator = new Random();
@@ -63,28 +66,52 @@ namespace Battleship
             return battleFieldArray;
         }
 
+        static void WriteEmptyLine(string spacer)
+        {
+            // We need different calls to WriteLine depending on whether \t or (a) whitespace(s) are used for spacing
+            if (spacer == "\t")
+                // The column length to spacer ratio has been determined by trial and error and could probably be solved
+                // in a smarter way than some if else statements with hard coded limits 
+                // if someone were to actually think about the problem.
+                if (columns < 12)
+                    Console.WriteLine("{0}", String.Concat(Enumerable.Repeat(spacer, columns + 1)));
+                else
+                    Console.WriteLine("{0}", String.Concat(Enumerable.Repeat(spacer, columns + 2)));
+            else
+                Console.WriteLine("{0}", String.Concat(Enumerable.Repeat(spacer, columns + 1)));
+        }
+
         static void PrintBattleFieldArray()
         {
-            // Initialize a variable to contain our spacer so we can adjust it more easily
-            string spacer = "\t";
+            // Declare a variable to contain our spacer so we can have a flexible interface
+            string spacer;
+            // The maximum amount of rows and columns that fit the screen when using tab as a spacer is 13
+            if (columns <= 13)
+                spacer = "\t";
+            else
+                spacer = " ";
 
             // write a alphabetical character to mark the columns for visual orientation
             // For now we introduced a bug if the user selects a greater amount columns
-            // than there are letters in the alphabet. Either limit columns to 26
+            // than there are letters in the English alphabet. Either limit columns to 26
             // or provide some potentially endless combination generator
-            // (like in Excel A B ... X Y Z AA AB AC ... etc)
+            // (like in Excel A B ... Y Z AA AB ... etc)
             Console.Write(spacer);
             if (spacer != "\t")
                 Console.Write(" ");
             for (byte i = 0; i < columns; i++)
                 Console.Write("{0}{1}", alpha[i], spacer);
             Console.WriteLine();
+            if (spacer == "\t")
+                // If we are using tab as a spacer add an empty line between the header and the playing field
+                //  to format the rows and columns a bit more evenly
+                WriteEmptyLine(spacer);
 
             for (byte i = 0; i < rows; i++)
             {
                 // ... write spacer to make the battlefield more pleasant to read
                 // write the row number for visual orientation
-                Console.Write("{0}{1}", i, spacer);
+                Console.Write("{0}{1}", i + 1, spacer);
                 {
                     // ... for each column ...
                     for (byte j = 0; j < columns; j++)
@@ -97,7 +124,10 @@ namespace Battleship
                                 Console.Write(".{0}", spacer);
                                 break;
                             case TileType.ship:
-                                Console.Write("s{0}", spacer);
+                                if (dev == true)
+                                    Console.Write("s{0}", spacer); // Print the ships in case developer mode is enabled
+                                else
+                                    Console.Write(".{0}", spacer);
                                 break;
                             case TileType.hit:
                                 Console.Write("X{0}", spacer);
@@ -110,14 +140,11 @@ namespace Battleship
                 }
                 // Complete the line at the end of each column loop
                 Console.WriteLine();
+                if (spacer == "\t")
+                    // If we are using tab as a spacer add an empty line between each line to format the rows
+                    // and columns a bit more evenly
+                    WriteEmptyLine(spacer);
             }
-
-            // Also print an empty new line at the end of each row loop to ensure that we have a line break.
-            // fill it with the right amount of whitespaces. Otherwise .net doesn't apply Console.Backgroundcolor
-            Console.WriteLine("{0}", String.Concat(Enumerable.Repeat(spacer, columns + 1)));
-
-            // And a final readline
-            Console.ReadLine();
         }
 
         static void SetupEnvironment()
@@ -126,28 +153,166 @@ namespace Battleship
             Console.BackgroundColor = ConsoleColor.White;
             Console.ForegroundColor = ConsoleColor.DarkBlue;
 
-            // How many ships of each type will each player start with?
-            playerShips = 8;
-            // What are the dimensions of our battle field?
-            rows = 8;
-            columns = 6;
+            // for now limit rows and columns so we don't have to deal with formatting too much
+            byte maxRows = 26;
+            byte maxColumns = 28;
 
-            if (playerShips > rows * columns)
+            // Does the user want to customize some of the game's options?
+            bool customGame = false;
+
+            Console.WriteLine("Hello, do you want to customize some options or play with default settings? [c/D]");
+            string input = Console.ReadLine();
+            if (input.Length == 0 || input.ToUpper() == "D")
+            { }
+            else if (input.ToUpper() == "C")
+                customGame = true;
+            else if (input == "dev")
+                dev = true;
+            else
             {
-                Console.WriteLine("The amount of player ships ({0}) is larger than the total amount of " +
-                "tiles (rows: {1} * {2} = {3}). Aborting!", playerShips, rows, columns, rows * columns);
+                Console.WriteLine("{0} is neither \"c\" nor \"d\", I'm gonna assume, that you want to play with the default settings.", input);
                 Console.ReadLine();
-                return;
             }
 
+            if (customGame == false)
+            {
+                // How many ships of each type will each player start with?
+                playerShips = 6;
+                // What are the dimensions of our battle field?
+                rows = 6;
+                columns = 6;
+            }
+            else
+            {
+                bool inputIsValid = false;
+                while (inputIsValid == false)
+                {
+                    Console.WriteLine("How many rows should the playing field have? Please enter a number between 1 and {0}", maxRows);
+                    input = Console.ReadLine();
+                    if (Byte.TryParse(input, out rows))
+                        if (rows > 0 && rows <= maxRows)
+                            inputIsValid = true;
+                }
+                inputIsValid = false;
+                while (inputIsValid == false)
+                {
+                    Console.WriteLine("How many columns should the playing field have? Please enter a number between 1 and {0}", maxColumns);
+                    input = Console.ReadLine();
+                    if (Byte.TryParse(input, out columns))
+                        if (columns > 0 && columns <= maxColumns)
+                            inputIsValid = true;
+                }
+                inputIsValid = false;
+                while (inputIsValid == false)
+                {
+                    Console.WriteLine("How many ships should each player have. Please enter a number between 1 and {0}", columns * rows - 1);
+                    input = Console.ReadLine();
+                    if (Byte.TryParse(input, out playerShips))
+                        if (playerShips > 0 && playerShips <= columns * rows - 1)
+                            inputIsValid = true;
+                }
+            }
             // Call CreateBattlefield to set up the grid
-            TileType[,] battleField = CreateBattlefield(rows, columns, playerShips);
+            TileType[,] battleField = CreateBattlefield();
+        }
+
+        static void ShootAtShips()
+        {
+            byte[] targetCoordinates = GetTargetInput();
+            // Console.WriteLine("rows is: {0} and columns is {1}", rows, columns);
+            // Console.WriteLine("targetColumn is: {0}", targetCoordinates[0]);
+            // Console.WriteLine("targetRow is : {0}", targetCoordinates[1]);
+            switch (battleFieldArray[targetCoordinates[0],targetCoordinates[1]])
+            {
+                case TileType.untouched:
+                    battleFieldArray[targetCoordinates[0], targetCoordinates[1]] = TileType.miss;
+                    break;
+                case TileType.ship:
+                    battleFieldArray[targetCoordinates[0], targetCoordinates[1]] = TileType.hit;
+                    playerShips--;
+                    break;
+            }
+
+        }
+
+        static byte[] GetTargetInput()
+        // The return value is a byte array which stores the targetRow in its 0th position
+        // and the targetColumn in its 1st position
+        {
+            byte[] targetCoordinates = new byte[2];
+            string input;
+            bool columnIsValid = false;
+            bool rowIsValid = false;
+
+            // Keep on looping until we've received valid input
+            while (columnIsValid == false)
+            {
+                Console.WriteLine("Please enter your target column: ");
+                input = Console.ReadLine();
+                // Is the entered string in the right size?
+                if (input.Length != 1)
+                    continue;
+                // Is the character alphabetical?
+                if (char.IsLetter(input[0]) == false)
+                    continue;
+                // Convert the letter into uppercase
+                input = input.ToUpper();
+                // Convert the letter into its positional value on the playing field
+                for (byte i = 0; i < columns; i++)
+                {
+                    if (alpha[i] == input[0])
+                    {
+                        targetCoordinates[1] = i;
+                        columnIsValid = true;
+                        break;
+                    }
+                }
+            }
+
+            while (rowIsValid == false)
+            {
+                short tmp; // Is there a way to do this without "bridging" from string to byte via short?
+
+                Console.WriteLine("Please enter your target row: ");
+                input = Console.ReadLine();
+
+                // Does the string parse into a number?
+                if (!short.TryParse(input, out tmp))
+                    continue;
+
+                tmp--; // Decrement tmp because our battflefield array indeces begin at 0 not at 1
+
+                // Is the column within the array index range of 0 and rows?)
+                if (tmp >= 0 && tmp < rows)
+                {
+                    targetCoordinates[0] = (byte)tmp;
+                    // We have valid input for both our columns and our rows!
+                    rowIsValid = true;
+                }
+                else
+                    continue;
+            }
+            return targetCoordinates;
         }
 
         static void Main(string[] args)
-        { 
+        {
+            // Parse whether developer mode should be enabled or not
+            if (args.Length > 0)
+                if (args[1] == "-dev 1")
+                    dev = true;
+            // Setup
             SetupEnvironment();
+            
+            // Begin the gameplay loop
+            while (playerShips > 0)
+            {
+                PrintBattleFieldArray();
+                ShootAtShips();
+            }
             PrintBattleFieldArray();
+            Console.WriteLine("You won!");
+            Console.ReadLine();
         }
     }
 }
