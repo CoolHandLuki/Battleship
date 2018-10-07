@@ -8,6 +8,195 @@ using System.Threading; // Threading can be used for functions like sleep
 
 namespace Battleship
 {
+    public class Player
+    {
+        public int wins { get; set; }
+        public int losses { get; set; }
+        static int rows = 4, columns = 4;
+        public Board board;
+
+        public Player()
+        {
+            wins = 0;
+            losses = 0;
+            CreateNewBoard();
+        }
+
+        public void CreateNewBoard()
+        {
+            board = new Board(rows, columns);
+        }
+        
+        public void Won()
+        {
+            wins += 1;
+            CreateNewBoard();
+        }
+
+        public void Lost()
+        {
+            losses -= 1;
+            CreateNewBoard();
+        }
+
+        public void TargetCell()
+        {
+            int selectedRow = 0;
+            int selectedColumn = 0;
+            ConsoleKey pressedButton;
+            do
+            {
+                pressedButton = Console.ReadKey(true).Key;
+                switch (pressedButton)
+                {
+                    case ConsoleKey.LeftArrow:
+                        if (selectedColumn == 0)
+                        {
+                            selectedColumn = board.columns - 1;
+                            board.PrintBoard(selectedRow, selectedColumn);
+                            break;
+                        }
+                        else
+                        {
+                            selectedColumn -= 1;
+                            board.PrintBoard(selectedRow, selectedColumn);
+                            break;
+                        }
+                    case ConsoleKey.RightArrow:
+                        if (selectedColumn == board.columns - 1)
+                        {
+                            selectedColumn = 0;
+                            board.PrintBoard(selectedRow, selectedColumn);
+                            break;
+                        }
+                        else
+                        { 
+                            selectedColumn += 1;
+                            board.PrintBoard(selectedRow, selectedColumn);
+                            break;
+                        }
+                    case ConsoleKey.UpArrow:
+                        if (selectedRow == 0)
+                        {
+                            selectedRow = board.rows - 1;
+                            board.PrintBoard(selectedRow, selectedColumn);
+                            break;
+                        }
+                        else
+                        {
+                            selectedRow -= 1;
+                            board.PrintBoard(selectedRow, selectedColumn);
+                            break;
+                        }
+                    case ConsoleKey.DownArrow:
+                        if (selectedRow == board.rows - 1)
+                        {
+                            selectedRow = 0;
+                            board.PrintBoard(selectedRow, selectedColumn);
+                            break;
+                        }
+                        else
+                        {
+                            selectedRow += 1;
+                            board.PrintBoard(selectedRow, selectedColumn);
+                            break;
+                        }
+                }
+                //Console.WriteLine(pressedButton);
+                //Console.WriteLine("new selRow: {0}, new selCol: {1}", selectedRow, selectedColumn);
+            } while (pressedButton != ConsoleKey.Enter);
+        }
+    }
+
+    public class Board
+    {
+        public static char[] alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".ToCharArray();
+        public int rows { get; set; }
+        public int columns { get; set; }
+        public int ships { get; set; }
+        public TileType[,] board { get; set; }
+
+        public enum TileType : byte
+        {
+            untouched = 0,
+            ship = 1,
+            hit = 2,
+            miss = 3
+        }
+
+        public Board(int rows, int columns)
+        {
+            this.rows = rows;
+            this.columns = columns;
+            board = new TileType[rows, columns];
+        }
+
+        public void PrintBoard()
+        {
+            PrintBoard(false, null, null);
+        }
+
+        public void PrintBoard(bool developer)
+        {
+            PrintBoard(developer, null, null);
+        }
+
+        public void PrintBoard(int selectRow, int selectCol)
+        {
+            PrintBoard(false, selectRow, selectCol);
+        }
+
+        public void PrintBoard(bool developer, int? selectRow, int? selectCol)
+        {
+            ConsoleColor oldBackground = Console.BackgroundColor;
+            ConsoleColor oldForeground = Console.ForegroundColor;
+
+            Console.Clear();
+            for (byte i = 0; i < rows; i++)
+            { 
+                for (byte j = 0; j < columns; j++)
+                {
+                    if (selectRow != null && selectCol != null && i == selectRow && j == selectCol)
+                    {
+                        SwapConsoleColors();
+                    }
+                    TileType t = board[i, j];
+                    switch (t)
+                    {
+                        case TileType.hit:
+                            Console.Write("X");
+                            break;
+                        case TileType.miss:
+                            Console.Write("o");
+                            break;
+                        case TileType.ship:
+                            if (developer == true)
+                                Console.Write("s");
+                            else
+                                Console.Write(".");
+                                break;
+                        case TileType.untouched:
+                            Console.Write(".");
+                            break;
+                    }
+                    if (selectRow != null && selectCol != null && i == selectRow && j == selectCol)
+                    {
+                        SwapConsoleColors();
+                    }
+                    Console.Write(" ");
+                }
+            Console.Write("\n");
+            }
+        }
+
+        public void SwapConsoleColors()
+        {
+            ConsoleColor tmp = Console.BackgroundColor;
+            Console.BackgroundColor = Console.ForegroundColor;
+            Console.ForegroundColor = tmp;
+        }
+    }
+
     class Program
     {
         // Write logic for the game "Battleship"
@@ -59,7 +248,7 @@ namespace Battleship
                 byte rCol = (byte)RandomNumberGenerator.Next(columns);
                 if (battleFieldArray[rRow, rCol] != TileType.untouched)
                     // We hit a tile that already contains a ship. Retry by decrementing the counter by 1.
-                    i--;
+                  i--;
                 else
                     battleFieldArray[rRow, rCol] = TileType.ship;
             }
@@ -231,6 +420,8 @@ namespace Battleship
                     battleFieldArray[targetCoordinates[0], targetCoordinates[1]] = TileType.hit;
                     playerShips--;
                     break;
+                default:
+                    break;
             }
 
         }
@@ -271,13 +462,13 @@ namespace Battleship
 
             while (rowIsValid == false)
             {
-                short tmp; // Is there a way to do this without "bridging" from string to byte via short?
+                int tmp; // Is there a way to do this without "bridging" from string to byte via int?
 
                 Console.WriteLine("Please enter your target row: ");
                 input = Console.ReadLine();
 
                 // Does the string parse into a number?
-                if (!short.TryParse(input, out tmp))
+                if (!int.TryParse(input, out tmp))
                     continue;
 
                 tmp--; // Decrement tmp because our battflefield array indeces begin at 0 not at 1
@@ -297,22 +488,40 @@ namespace Battleship
 
         static void Main(string[] args)
         {
-            // Parse whether developer mode should be enabled or not
-            if (args.Length > 0)
-                if (args[1] == "-dev 1")
-                    dev = true;
-            // Setup
-            SetupEnvironment();
-            
-            // Begin the gameplay loop
-            while (playerShips > 0)
-            {
-                PrintBattleFieldArray();
-                ShootAtShips();
-            }
-            PrintBattleFieldArray();
-            Console.WriteLine("You won!");
+            Console.BackgroundColor = ConsoleColor.White;
+            Console.ForegroundColor = ConsoleColor.DarkBlue;
+            Console.Clear();
+            bool developer;
+
+            if (args.Length > 1)
+                if (args[0] == "-dev" && args[1] == "1")
+                    Console.WriteLine("Developer mode enabled.");
+            developer = true;
+            Player player1 = new Player();
+            player1.board = new Board(4, 5);
+            player1.TargetCell();
+
             Console.ReadLine();
+            return;
+
+            ////Console.WriteLine("args.Length = {0}", args.Length);
+            //// Parse whether developer mode should be enabled or not
+            //if (args.Length > 1)
+            //    if (args[0] == "-dev" && args[1] == "1")
+            //        Console.WriteLine("Developer mode enabled.");
+            //        dev = true;
+            //// Setup
+            //SetupEnvironment();
+
+            //// Begin the gameplay loop
+            //while (playerShips > 0)
+            //{
+            //    PrintBattleFieldArray();
+            //    ShootAtShips();
+            //}
+            //PrintBattleFieldArray();
+            //Console.WriteLine("You won!");
+            //Console.ReadLine();
         }
     }
 }
